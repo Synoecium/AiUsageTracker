@@ -37,7 +37,7 @@ wxColour ColourForPercent(double percent, double warn, double danger) {
 } // namespace
 
 MainFrame::MainFrame()
-    : wxFrame(nullptr, wxID_ANY, "Claude + Codex + Kimi + Cursor Usage Tracker", wxDefaultPosition, wxSize(460, 820)),
+    : wxFrame(nullptr, wxID_ANY, "AI Usage Tracker", wxDefaultPosition, wxSize(460, 820)),
       m_timer(this) {
     BuildUi();
 
