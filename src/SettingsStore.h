@@ -22,7 +22,7 @@ struct AppSettings {
 
 class SettingsStore {
 public:
-    // Returns %APPDATA%\ClaudeUsageTracker\settings.json
+    // Returns %APPDATA%\AiUsageTracker\settings.json
     static std::wstring GetSettingsPath();
 
     // Loads settings from disk. Returns false if no file exists yet (out is

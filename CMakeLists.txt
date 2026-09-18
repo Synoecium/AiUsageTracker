@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(ClaudeUsageTracker CXX)
+project(AiUsageTracker CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,7 +11,7 @@ endif()
 find_package(wxWidgets CONFIG REQUIRED COMPONENTS core base webview)
 find_package(nlohmann_json CONFIG REQUIRED)
 
-add_executable(ClaudeUsageTracker WIN32
+add_executable(AiUsageTracker WIN32
     src/main.cpp
     src/MainFrame.cpp
     src/SettingsDialog.cpp
@@ -22,7 +22,7 @@ add_executable(ClaudeUsageTracker WIN32
     src/Logger.cpp
 )
 
-target_link_libraries(ClaudeUsageTracker PRIVATE
+target_link_libraries(AiUsageTracker PRIVATE
     wx::core
     wx::base
     wx::webview
@@ -34,7 +34,7 @@ target_link_libraries(ClaudeUsageTracker PRIVATE
 find_file(WEBVIEW2LOADER_DLL WebView2Loader.dll
     PATHS "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/bin")
 if(WEBVIEW2LOADER_DLL)
-    add_custom_command(TARGET ClaudeUsageTracker POST_BUILD
+    add_custom_command(TARGET AiUsageTracker POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${WEBVIEW2LOADER_DLL}" "$<TARGET_FILE_DIR:ClaudeUsageTracker>")
+                "${WEBVIEW2LOADER_DLL}" "$<TARGET_FILE_DIR:AiUsageTracker>")
 endif()

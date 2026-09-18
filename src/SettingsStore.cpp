@@ -17,7 +17,7 @@ std::wstring SettingsStore::GetSettingsPath() {
         dir = appData;
         free(appData);
     }
-    dir += L"\\ClaudeUsageTracker";
+    dir += L"\\AiUsageTracker";
     CreateDirectoryW(dir.c_str(), nullptr);
     return dir + L"\\settings.json";
 }

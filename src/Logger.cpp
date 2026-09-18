@@ -13,7 +13,7 @@ std::wstring Logger::GetLogPath() {
         dir = appData;
         free(appData);
     }
-    dir += L"\\ClaudeUsageTracker";
+    dir += L"\\AiUsageTracker";
     CreateDirectoryW(dir.c_str(), nullptr);
     return dir + L"\\log.txt";
 }

@@ -2,7 +2,7 @@
 
 #include <string>
 
-// Minimal append-only error log at %APPDATA%\ClaudeUsageTracker\log.txt, so
+// Minimal append-only error log at %APPDATA%\AiUsageTracker\log.txt, so
 // failures (fetch/script/parse errors) survive after the dialog that showed
 // them closes and can be inspected or shared for debugging.
 namespace Logger {

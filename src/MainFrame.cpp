@@ -396,7 +396,7 @@ void MainFrame::UpdateTrayTooltip() {
     if (m_settings.cursorEnabled && !m_cursorTooltipPart.empty()) parts.push_back(m_cursorTooltipPart);
 
     if (parts.empty()) {
-        m_trayIcon->UpdateTooltip("Claude Usage Tracker");
+        m_trayIcon->UpdateTooltip("AI Usage Tracker");
         return;
     }
 
