@@ -1,0 +1,8 @@
+{
+  "name": "claude-usage-tracker",
+  "version": "1.0.0",
+  "dependencies": [
+    { "name": "wxwidgets", "features": ["webview"] },
+    "nlohmann-json"
+  ]
+}
