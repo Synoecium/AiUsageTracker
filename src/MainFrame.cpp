@@ -231,13 +231,10 @@ void MainFrame::RefreshNow() {
             UsageData data;
             std::string parseError;
             bool parsed = ok && UsageJson::ParseCodexUsage(body, data, parseError);
-            bool usingLocal = false;
             if (!parsed) {
                 std::string localError;
                 parsed = UsageJson::LoadCodexLocalUsage(data, localError);
-                if (parsed) {
-                    usingLocal = true;
-                } else {
+                if (!parsed) {
                     parseError = ok ? parseError : error + "; local fallback: " + localError;
                 }
             }
@@ -256,8 +253,7 @@ void MainFrame::RefreshNow() {
             m_codexSecondaryGauge->Show(data.sevenDay.available);
             m_codexSecondaryLabel->Show(data.sevenDay.available);
             m_panel->Layout();
-            m_codexStatusText->SetLabel(wxString::Format("Codex: %s, updated %s",
-                usingLocal ? "local client usage" : "online usage", wxDateTime::Now().FormatTime()));
+            m_codexStatusText->SetLabel(wxString::Format("Last updated %s", wxDateTime::Now().FormatTime()));
             m_codexTooltipPart = wxString::Format("Codex %.0f%%", data.fiveHour.percent);
             UpdateTrayTooltip();
         });
