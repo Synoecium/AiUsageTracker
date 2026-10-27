@@ -34,6 +34,18 @@ wxColour ColourForPercent(double percent, double warn, double danger) {
     return wxColour(20, 120, 40);
 }
 
+wxString CodexWindowTitle(const UsageWindow& window, const char* fallback) {
+    const auto seconds = window.durationSeconds;
+    if (seconds == 7 * 24 * 60 * 60) return "Weekly";
+    if (seconds > 0 && seconds % (24 * 60 * 60) == 0)
+        return wxString::Format("%lld-day window", seconds / (24 * 60 * 60));
+    if (seconds > 0 && seconds % 3600 == 0)
+        return wxString::Format("%lld-hour window", seconds / 3600);
+    if (seconds > 0 && seconds % 60 == 0)
+        return wxString::Format("%lld-minute window", seconds / 60);
+    return wxString::FromUTF8(fallback);
+}
+
 } // namespace
 
 MainFrame::MainFrame()
@@ -100,11 +112,21 @@ void MainFrame::BuildUi() {
 
     auto* codexBox = new wxStaticBoxSizer(wxVERTICAL, panel, "Codex");
     m_codexBox = codexBox;
-    codexBox->Add(new wxStaticText(panel, wxID_ANY, "Monthly"), 0, wxLEFT | wxTOP, 8);
-    m_codexMonthlyGauge = new wxGauge(panel, wxID_ANY, 100, wxDefaultPosition, wxSize(-1, 22));
-    codexBox->Add(m_codexMonthlyGauge, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 8);
-    m_codexMonthlyLabel = new wxStaticText(panel, wxID_ANY, "--");
-    codexBox->Add(m_codexMonthlyLabel, 0, wxLEFT | wxTOP, 8);
+    m_codexPrimaryTitle = new wxStaticText(panel, wxID_ANY, "Usage window");
+    codexBox->Add(m_codexPrimaryTitle, 0, wxLEFT | wxTOP, 8);
+    m_codexPrimaryGauge = new wxGauge(panel, wxID_ANY, 100, wxDefaultPosition, wxSize(-1, 22));
+    codexBox->Add(m_codexPrimaryGauge, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 8);
+    m_codexPrimaryLabel = new wxStaticText(panel, wxID_ANY, "--");
+    codexBox->Add(m_codexPrimaryLabel, 0, wxLEFT | wxTOP, 8);
+    m_codexSecondaryTitle = new wxStaticText(panel, wxID_ANY, "Additional usage window");
+    codexBox->Add(m_codexSecondaryTitle, 0, wxLEFT | wxTOP, 8);
+    m_codexSecondaryGauge = new wxGauge(panel, wxID_ANY, 100, wxDefaultPosition, wxSize(-1, 22));
+    codexBox->Add(m_codexSecondaryGauge, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 8);
+    m_codexSecondaryLabel = new wxStaticText(panel, wxID_ANY, "--");
+    codexBox->Add(m_codexSecondaryLabel, 0, wxLEFT | wxTOP, 8);
+    m_codexSecondaryTitle->Hide();
+    m_codexSecondaryGauge->Hide();
+    m_codexSecondaryLabel->Hide();
     m_codexStatusText = new wxStaticText(panel, wxID_ANY, "Codex: not logged in");
     codexBox->Add(m_codexStatusText, 0, wxLEFT | wxRIGHT | wxTOP | wxBOTTOM, 8);
     root->Add(codexBox, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
@@ -209,11 +231,12 @@ void MainFrame::RefreshNow() {
             UsageData data;
             std::string parseError;
             bool parsed = ok && UsageJson::ParseCodexUsage(body, data, parseError);
+            bool usingLocal = false;
             if (!parsed) {
                 std::string localError;
                 parsed = UsageJson::LoadCodexLocalUsage(data, localError);
                 if (parsed) {
-                    m_codexStatusText->SetLabel("Codex: using local client usage");
+                    usingLocal = true;
                 } else {
                     parseError = ok ? parseError : error + "; local fallback: " + localError;
                 }
@@ -225,8 +248,16 @@ void MainFrame::RefreshNow() {
                 UpdateTrayTooltip();
                 return;
             }
-            ApplyWindow(m_codexMonthlyGauge, m_codexMonthlyLabel, data.fiveHour);
-            m_codexStatusText->SetLabel(wxString::Format("Codex: last updated %s", wxDateTime::Now().FormatTime()));
+            m_codexPrimaryTitle->SetLabel(CodexWindowTitle(data.fiveHour, "Usage window"));
+            ApplyWindow(m_codexPrimaryGauge, m_codexPrimaryLabel, data.fiveHour);
+            m_codexSecondaryTitle->SetLabel(CodexWindowTitle(data.sevenDay, "Additional usage window"));
+            ApplyWindow(m_codexSecondaryGauge, m_codexSecondaryLabel, data.sevenDay);
+            m_codexSecondaryTitle->Show(data.sevenDay.available);
+            m_codexSecondaryGauge->Show(data.sevenDay.available);
+            m_codexSecondaryLabel->Show(data.sevenDay.available);
+            m_panel->Layout();
+            m_codexStatusText->SetLabel(wxString::Format("Codex: %s, updated %s",
+                usingLocal ? "local client usage" : "online usage", wxDateTime::Now().FormatTime()));
             m_codexTooltipPart = wxString::Format("Codex %.0f%%", data.fiveHour.percent);
             UpdateTrayTooltip();
         });

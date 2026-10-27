@@ -88,22 +88,18 @@ UsageWindow ParseWindow(const json& j) {
 
 UsageWindow ParseCodexWindow(const json& j) {
     UsageWindow w;
-    if (!j.is_object()) return w;
+    if (!j.is_object() || j.empty()) return w;
     w.available = true;
     w.percent = GetNumberField(j, "used_percent", GetNumberField(j, "utilization", 0.0));
+    w.durationSeconds = static_cast<long long>(GetNumberField(j, "limit_window_seconds",
+        GetNumberField(j, "window_minutes", 0.0) * 60));
     if (j.contains("reset_at")) {
         if (j["reset_at"].is_number()) w.resetsAt = static_cast<time_t>(j["reset_at"].get<double>());
         else w.resetsAt = ParseIso8601Utc(GetStringField(j, "reset_at"));
     }
-    if (w.resetsAt <= 0) {
-        const double minutes = GetNumberField(j, "window_minutes", 0.0);
-        const double used = GetNumberField(j, "used_percent", -1.0);
-        if (minutes > 0 && used >= 0) {
-            // Local Codex snapshots expose the end of the current window as
-            // resets_at. Keep this fallback only for older snapshots that
-            // provide a duration but no absolute reset timestamp.
-            w.resetsAt = std::time(nullptr) + static_cast<time_t>(minutes * 60);
-        }
+    if (w.resetsAt <= 0 && j.contains("resets_at")) {
+        if (j["resets_at"].is_number()) w.resetsAt = static_cast<time_t>(j["resets_at"].get<double>());
+        else w.resetsAt = ParseIso8601Utc(GetStringField(j, "resets_at"));
     }
     if (w.resetsAt <= 0) {
         const double seconds = GetNumberField(j, "reset_after_seconds", 0.0);

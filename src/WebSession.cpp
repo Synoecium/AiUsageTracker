@@ -41,6 +41,33 @@ const wxString& KickoffScriptTemplate() {
     return tpl;
 }
 
+// ChatGPT's usage API requires the access token from its authenticated
+// session; the browser's session cookies alone are not sufficient.
+const wxString& CodexKickoffScriptTemplate() {
+    static const wxString tpl =
+        "window.__cuTResult = null;"
+        "(async () => {"
+        "  try {"
+        "    const sessionResponse = await fetch('/api/auth/session', {credentials: 'include', headers: {'accept': 'application/json'}});"
+        "    if (!sessionResponse.ok) {"
+        "      window.__cuTResult = JSON.stringify({status: sessionResponse.status, body: 'Could not retrieve ChatGPT session', href: location.href});"
+        "      return;"
+        "    }"
+        "    const session = await sessionResponse.json();"
+        "    if (!session.accessToken) {"
+        "      window.__cuTResult = JSON.stringify({status: 401, body: 'ChatGPT session has no access token', href: location.href});"
+        "      return;"
+        "    }"
+        "    const response = await fetch(%s, {credentials: 'include', headers: {'accept': 'application/json', 'Authorization': 'Bearer ' + session.accessToken}});"
+        "    window.__cuTResult = JSON.stringify({status: response.status, body: await response.text(), href: location.href});"
+        "  } catch (e) {"
+        "    window.__cuTResult = JSON.stringify({status: 0, body: (e && e.message) ? e.message : String(e), href: location.href});"
+        "  }"
+        "})();"
+        "true;";
+    return tpl;
+}
+
 const wxString& PollScript() {
     static const wxString script =
         "(function() {"
@@ -189,6 +216,12 @@ void WebSession::PumpQueue() {
         apiOrigin = "https://www.kimi.ai";
     }
     const std::string url = apiOrigin + request.path;
+    if (m_origin == "https://chatgpt.com" && request.path == "/backend-api/wham/usage" && request.method == "GET") {
+        const wxString js = wxString::Format(CodexKickoffScriptTemplate(),
+                                              wxString::FromUTF8(json(url).dump().c_str()));
+        m_webView->RunScriptAsync(js);
+        return;
+    }
     if (request.connectJson) {
         std::string payload = request.body;
         try {

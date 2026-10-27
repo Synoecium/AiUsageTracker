@@ -39,8 +39,12 @@ private:
     wxGauge* m_weeklyGauge = nullptr;
     wxStaticText* m_weeklyLabel = nullptr;
     wxStaticText* m_statusText = nullptr;
-    wxGauge* m_codexMonthlyGauge = nullptr;
-    wxStaticText* m_codexMonthlyLabel = nullptr;
+    wxStaticText* m_codexPrimaryTitle = nullptr;
+    wxGauge* m_codexPrimaryGauge = nullptr;
+    wxStaticText* m_codexPrimaryLabel = nullptr;
+    wxStaticText* m_codexSecondaryTitle = nullptr;
+    wxGauge* m_codexSecondaryGauge = nullptr;
+    wxStaticText* m_codexSecondaryLabel = nullptr;
     wxStaticText* m_codexStatusText = nullptr;
     wxGauge* m_kimiMonthlyGauge = nullptr;
     wxStaticText* m_kimiMonthlyLabel = nullptr;

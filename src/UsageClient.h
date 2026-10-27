@@ -9,6 +9,7 @@ struct UsageWindow {
     bool available = false;
     double percent = 0.0;   // 0-100
     time_t resetsAt = 0;    // UTC unix timestamp; 0 if unknown
+    long long durationSeconds = 0; // window length; 0 if unknown
 };
 
 struct UsageData {
