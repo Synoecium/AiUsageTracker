@@ -11,6 +11,7 @@ using json = nlohmann::json;
 
 namespace {
 constexpr int kPollIntervalMs = 150;
+constexpr int kRequestTimeoutMs = 20000;
 
 // Always leaves window.__cuTResult holding a JSON string once the fetch
 // settles (success or failure) - never throws/rejects up to RunScriptAsync,
@@ -114,7 +115,8 @@ WebSession::WebSession(wxWindow* parent, std::string origin, std::string windowT
     : wxFrame(parent, wxID_ANY, windowTitle, wxDefaultPosition, wxSize(480, 720)),
       m_origin(std::move(origin)),
       m_bearerToken(std::move(bearerToken)),
-      m_pollTimer(this) {
+      m_pollTimer(this),
+      m_timeoutTimer(this) {
     if (!wxWebView::IsBackendAvailable(wxWebViewBackendEdge)) {
         Logger::LogError("WebView2 (Edge) backend is not available on this system.");
         wxMessageBox(
@@ -141,6 +143,7 @@ WebSession::WebSession(wxWindow* parent, std::string origin, std::string windowT
     // this session's persisted profile.
     m_webView->Bind(wxEVT_WEBVIEW_NEWWINDOW, &WebSession::OnWebViewNewWindow, this);
     Bind(wxEVT_TIMER, &WebSession::OnPollTimer, this, m_pollTimer.GetId());
+    Bind(wxEVT_TIMER, &WebSession::OnTimeout, this, m_timeoutTimer.GetId());
 
     // Hide instead of destroying when the user closes the login window - the
     // WebView2 instance (and its logged-in session) stays alive in the
@@ -203,9 +206,12 @@ void WebSession::OnWebViewNewWindow(wxWebViewEvent& event) {
 }
 
 void WebSession::PumpQueue() {
-    if (m_phase != Phase::Idle || m_queue.empty() || !m_navigated || !m_atOrigin) return;
+    if (m_queue.empty()) return;
+    if (!m_timeoutTimer.IsRunning()) m_timeoutTimer.StartOnce(kRequestTimeoutMs);
+    if (m_phase != Phase::Idle || !m_navigated || !m_atOrigin) return;
 
     m_phase = Phase::Kickoff;
+    ++m_requestId;
     const PendingRequest& request = m_queue.front();
     std::string apiOrigin = m_origin;
     // Kimi may redirect the embedded login page to www.kimi.ai. Keep the
@@ -219,7 +225,7 @@ void WebSession::PumpQueue() {
     if (m_origin == "https://chatgpt.com" && request.path == "/backend-api/wham/usage" && request.method == "GET") {
         const wxString js = wxString::Format(CodexKickoffScriptTemplate(),
                                               wxString::FromUTF8(json(url).dump().c_str()));
-        m_webView->RunScriptAsync(js);
+        RunRequestScript(js);
         return;
     }
     if (request.connectJson) {
@@ -232,7 +238,7 @@ void WebSession::PumpQueue() {
         wxString js = wxString::Format(ConnectKickoffScriptTemplate(),
                                        wxString::FromUTF8(json(payload).dump().c_str()),
                                        wxString::FromUTF8(json(url).dump().c_str()));
-        m_webView->RunScriptAsync(js);
+        RunRequestScript(js);
         return;
     }
     std::string options = "{credentials: 'include', headers: {'accept': 'application/json', 'x-msh-platform': 'web', 'x-msh-version': '2.2.0', 'X-Language': navigator.language, 'R-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone}}";
@@ -257,11 +263,19 @@ void WebSession::PumpQueue() {
                    "'accept': 'application/json', 'Authorization': 'Bearer ' + " +
                    wxString::FromUTF8(tokenLiteral.c_str()));
     }
-    m_webView->RunScriptAsync(js);
+    RunRequestScript(js);
+}
+
+void WebSession::RunRequestScript(const wxString& script) {
+    wxString isolatedScript = script;
+    isolatedScript.Replace("__cuTResult", wxString::Format("__cuTResult_%llu", static_cast<unsigned long long>(m_requestId)));
+    m_webView->RunScriptAsync(isolatedScript, reinterpret_cast<void*>(m_requestId));
 }
 
 void WebSession::FailCurrentRequest(const std::string& error) {
     Logger::LogError("WebSession request failed: " + error);
+    m_pollTimer.Stop();
+    m_timeoutTimer.Stop();
 
     if (m_queue.empty()) {
         m_phase = Phase::Idle;
@@ -276,11 +290,20 @@ void WebSession::FailCurrentRequest(const std::string& error) {
 
 void WebSession::OnPollTimer(wxTimerEvent&) {
     if (m_phase != Phase::Polling) return;
-    m_webView->RunScriptAsync(PollScript());
+    RunRequestScript(PollScript());
+}
+
+void WebSession::OnTimeout(wxTimerEvent&) {
+    if (m_queue.empty()) return;
+    const std::string stage = !m_navigated ? "waiting for browser navigation" :
+        !m_atOrigin ? "waiting for service login page" :
+        m_phase == Phase::Kickoff ? "starting browser script" : "waiting for response";
+    FailCurrentRequest("Timed out " + stage + " for " + m_origin);
 }
 
 void WebSession::OnScriptResult(wxWebViewEvent& event) {
     if (m_phase == Phase::Idle) return; // stray/late event, nothing to resolve
+    if (reinterpret_cast<uintptr_t>(event.GetClientData()) != m_requestId) return;
 
     if (event.IsError()) {
         FailCurrentRequest("Script execution failed: " + event.GetString().ToStdString());
@@ -309,6 +332,7 @@ void WebSession::OnScriptResult(wxWebViewEvent& event) {
         PendingRequest request = std::move(m_queue.front());
         m_queue.pop_front();
         m_phase = Phase::Idle;
+        m_timeoutTimer.Stop();
 
         if (status == 200) {
             request.callback(true, body, "");

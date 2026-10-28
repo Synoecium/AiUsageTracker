@@ -1,6 +1,7 @@
 #pragma once
 
 #include <deque>
+#include <cstdint>
 #include <functional>
 #include <string>
 
@@ -56,8 +57,10 @@ private:
     void OnWebViewNewWindow(wxWebViewEvent& event);
     void OnScriptResult(wxWebViewEvent& event);
     void OnPollTimer(wxTimerEvent& event);
+    void OnTimeout(wxTimerEvent& event);
     void PumpQueue();
     void FailCurrentRequest(const std::string& error);
+    void RunRequestScript(const wxString& script);
 
     struct PendingRequest {
         std::string path;
@@ -74,5 +77,7 @@ private:
     bool m_atOrigin = false;
     Phase m_phase = Phase::Idle;
     wxTimer m_pollTimer;
+    wxTimer m_timeoutTimer;
+    uintptr_t m_requestId = 0;
     std::deque<PendingRequest> m_queue;
 };
